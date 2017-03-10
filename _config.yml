@@ -70,4 +70,20 @@ theme: next
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
-  type:
+  type: git
+  repo: git@github.com:chiyx/chiyx.github.io.git
+  branch: master
+  name: chiyx
+  email: chiyxme@outlook.com
+
+# Social links
+social:
+  GitHub: https://github.com/chiyx
+  Twitter: https://twitter.com/pittychiyx
+  Weibo: http://weibo.com/chiyx
+  zhihu: https://www.zhihu.com/people/chi-yong-xiang/
+
+feed:
+  type: atom
+  path: atom.xml
+  limit: 20
