@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://chiyx.github.io/"/>
-  <updated>2017-03-10T13:31:27.000Z</updated>
+  <updated>2017-03-12T17:23:09.000Z</updated>
   <id>https://chiyx.github.io/</id>
   
   <author>
@@ -14,6 +14,79 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>java2d合图系列-绘制圆形图像图层</title>
+    <link href="https://chiyx.github.io/2017/03/12/java2d-ellipse-image-draw/"/>
+    <id>https://chiyx.github.io/2017/03/12/java2d-ellipse-image-draw/</id>
+    <published>2017-03-12T15:38:30.000Z</published>
+    <updated>2017-03-12T17:23:09.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>在当前潮流的趋势中，对于用户头像的展示一般都是设计成圆形图层的展现形式，如果是在网页上进行展示，我们可以通过css3的将头像包在一个方形的<strong>div</strong>中，然后设置 <strong>border-radius</strong>的值为头像的边长相等便可。</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">div</span> &#123;</div><div class="line">    <span class="attribute">width</span>: <span class="number">92px</span>;</div><div class="line">    <span class="attribute">height</span>: <span class="number">92px</span>;</div><div class="line">    <span class="attribute">border-radius</span>: <span class="number">92px</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>但是如果是在图片合成的时候，需要将头像合到一个预先挖好一个圆坑的底图中，又该如何做呢? 比如有如下的底图和用户头像:</p>
+<p><img src="/images/avatar_re.png" alt="image"></p>
+<p><img src="/images/mytaobao_avart.jpeg" alt="image"></p>
+<p>现在需要将后面的头像图片替换掉底图中被框起来的部分，采用的步骤基本如下:</p>
+<ol>
+<li>将头像缩放到底图中的头像框大小</li>
+<li>将缩放后的头像进一步变成圆形图片</li>
+<li>将图像头像覆盖到底图的头像框上</li>
+</ol>
+<p>抛开缩放和覆盖(即打水印)不表，那么问题来了：如何将方形的图像变为一个圆形图像呢？</p>
+<a id="more"></a>
+<h2 id="思路一-将矩形头像超出其内接椭圆的部分都设置为透明即可在视觉上营造出椭圆型图像的概念"><a href="#思路一-将矩形头像超出其内接椭圆的部分都设置为透明即可在视觉上营造出椭圆型图像的概念" class="headerlink" title="思路一: 将矩形头像超出其内接椭圆的部分都设置为透明即可在视觉上营造出椭圆型图像的概念"></a>思路一: 将矩形头像超出其内接椭圆的部分都设置为透明即可在视觉上营造出椭圆型图像的概念</h2><blockquote>
+<p>正方形和圆形分别为长方形和椭圆的特例，为更好的适配不同场景，在处理上应该采用更广的定义</p>
+</blockquote>
+<ol>
+<li>将原头像转化为支持透明度设置的图片格式如: png</li>
+<li>设计一个代表对应图像矩形框的内接椭圆的结构，其有一个 <code>contain</code> 方法，用于判断某个点是否处于其中.</li>
+<li>遍历图像的各个像素，如果没有落在椭圆内则将其透明度设置为0</li>
+</ol>
+<p>具体<code>scala</code>代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">val (width, height) = (image.getWidth, image.getHeight)</div><div class="line"><span class="comment">// 1. 如果源图不支持透明度如：jpg，则将其重绘到一个支持透明的画布上</span></div><div class="line">val target = </div><div class="line">    <span class="keyword">if</span> (image.getTransparency == Transparency.TRANSLUCENT) image</div><div class="line">    <span class="keyword">else</span> &#123;</div><div class="line">       val tmp = <span class="keyword">new</span> BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)</div><div class="line">       tmp.createGraphics().drawImage(image, <span class="number">0</span>, <span class="number">0</span>, <span class="keyword">null</span>)</div><div class="line">       tmp</div><div class="line">    &#125;</div><div class="line"><span class="comment">// 2. 内接椭圆, java2d已为我们备好的大餐，省了很多回顾几何的麻烦</span></div><div class="line">val ellipse = <span class="keyword">new</span> Ellipse2D.Double(<span class="number">0</span>, <span class="number">0</span>, width, height)</div><div class="line"><span class="comment">// 3. 遍历所有像素点，如果不在椭圆里，将该像素设置为全透明</span></div><div class="line"><span class="number">0</span> until width foreach &#123; x =&gt;</div><div class="line">    <span class="number">0</span> until height foreach &#123; y =&gt;</div><div class="line">        <span class="keyword">if</span> (!ellipse.contains(x, y)) &#123;</div><div class="line">            val rgb = target.getRGB(x, y)</div><div class="line">            target.setRGB(x, y, rgb &amp; <span class="number">0x00ffffff</span>)</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"><span class="comment">// 返回新图像</span></div><div class="line">target</div></pre></td></tr></table></figure>
+<p>效果如下:</p>
+<p><img src="/images/mohe_avatar_ellipse_2.png" alt="image"></p>
+<p>可以发现得到的圆形图像的边缘很不光滑，毛刺很多，这是因为在内接椭圆的边缘划分其实是浮点值，无法直接映射到像素点上，<br>这就造成了在边缘点的处理上并不均匀，导致毛刺。</p>
+<h2 id="思路二-在一个透明画布上将画笔设置为头像图片，用该画笔在画布上绘制一个椭圆"><a href="#思路二-在一个透明画布上将画笔设置为头像图片，用该画笔在画布上绘制一个椭圆" class="headerlink" title="思路二: 在一个透明画布上将画笔设置为头像图片，用该画笔在画布上绘制一个椭圆"></a>思路二: 在一个透明画布上将画笔设置为头像图片，用该画笔在画布上绘制一个椭圆</h2><blockquote>
+<p>因为java2d在绘制各类图形时，会有一些边缘光滑处理的算法，只要我们指定特定的绘制hints就行</p>
+</blockquote>
+<ol>
+<li>创建一个源图像同等大小的透明画布</li>
+<li>设置绘制时的边缘处理的hints</li>
+<li>将原图像设置为该画布的画笔，这样在绘制图形时就会使用该图像对应像素点的rgba值</li>
+<li>在画布中绘制一个内接椭圆</li>
+</ol>
+<p>具体<code>scala</code>代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">val (width, height) = (image.getWidth, image.getHeight)</div><div class="line"><span class="comment">// 创建画布</span></div><div class="line">val target = <span class="keyword">new</span> BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)</div><div class="line"><span class="comment">// 设置hints</span></div><div class="line">val rh = <span class="keyword">new</span> RenderingHints(</div><div class="line">  RenderingHints.KEY_ANTIALIASING,</div><div class="line">  RenderingHints.VALUE_ANTIALIAS_ON)</div><div class="line">rh.put(RenderingHints.KEY_RENDERING,</div><div class="line">  RenderingHints.VALUE_RENDER_QUALITY)</div><div class="line">val g = target.createGraphics()</div><div class="line">g.setRenderingHints(rh)</div><div class="line"><span class="comment">// 设置画笔</span></div><div class="line">g.setPaint(<span class="keyword">new</span> TexturePaint(image, <span class="keyword">new</span> Rectangle(<span class="number">0</span>, <span class="number">0</span>, width, height)))</div><div class="line"><span class="comment">// 绘制内接椭圆</span></div><div class="line">g.fill(<span class="keyword">new</span> Ellipse2D.Double(<span class="number">0</span>, <span class="number">0</span>, width, height))</div><div class="line">target</div></pre></td></tr></table></figure>
+<p>效果如下:</p>
+<p><img src="/images/mohe_avatar_ellipse_1.png" alt="image"></p>
+<p>可以看到这次得到的圆形图像边缘已经如丝般柔滑，Done！</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;在当前潮流的趋势中，对于用户头像的展示一般都是设计成圆形图层的展现形式，如果是在网页上进行展示，我们可以通过css3的将头像包在一个方形的&lt;strong&gt;div&lt;/strong&gt;中，然后设置 &lt;strong&gt;border-radius&lt;/strong&gt;的值为头像的边长相等便可。&lt;/p&gt;
+&lt;figure class=&quot;highlight css&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;div class=&quot;line&quot;&gt;1&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;2&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;3&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;4&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;5&lt;/div&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;div class=&quot;line&quot;&gt;&lt;span class=&quot;selector-tag&quot;&gt;div&lt;/span&gt; &amp;#123;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    &lt;span class=&quot;attribute&quot;&gt;width&lt;/span&gt;: &lt;span class=&quot;number&quot;&gt;92px&lt;/span&gt;;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    &lt;span class=&quot;attribute&quot;&gt;height&lt;/span&gt;: &lt;span class=&quot;number&quot;&gt;92px&lt;/span&gt;;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    &lt;span class=&quot;attribute&quot;&gt;border-radius&lt;/span&gt;: &lt;span class=&quot;number&quot;&gt;92px&lt;/span&gt;;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;&amp;#125;&lt;/div&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+&lt;p&gt;但是如果是在图片合成的时候，需要将头像合到一个预先挖好一个圆坑的底图中，又该如何做呢? 比如有如下的底图和用户头像:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/avatar_re.png&quot; alt=&quot;image&quot;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/mytaobao_avart.jpeg&quot; alt=&quot;image&quot;&gt;&lt;/p&gt;
+&lt;p&gt;现在需要将后面的头像图片替换掉底图中被框起来的部分，采用的步骤基本如下:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;将头像缩放到底图中的头像框大小&lt;/li&gt;
+&lt;li&gt;将缩放后的头像进一步变成圆形图片&lt;/li&gt;
+&lt;li&gt;将图像头像覆盖到底图的头像框上&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;抛开缩放和覆盖(即打水印)不表，那么问题来了：如何将方形的图像变为一个圆形图像呢？&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="java2d" scheme="https://chiyx.github.io/categories/java2d/"/>
+    
+    
+      <category term="image-process" scheme="https://chiyx.github.io/tags/image-process/"/>
+    
+  </entry>
   
   <entry>
     <title>Hello World</title>
